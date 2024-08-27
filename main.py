@@ -4,30 +4,42 @@ import random
 
 pygame.init()
 
+pygame.mixer.init()
+
 WIDTH, HEIGHT = 800, 800
 BLACK = (0, 0, 0)
+# WHITE = (255, 255, 255)
 BALL_RADIUS = 10
 INITIAL_SQUARE_SIZE = WIDTH - 100
 DECREASE_RATE = 3
-VELOCITY = [25, 25]
+VELOCITY = [20, 20]
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Bouncing Ball")
+
+bounce_sound = pygame.mixer.Sound('instrumental.wav')
 
 ball_pos = [WIDTH // 2, HEIGHT // 2]
 square_size = INITIAL_SQUARE_SIZE
 bounce_count = 0
 
+tail_length = 12  # Number of tail segments
+tail_positions = []
+
 # Initial colors for the ball and square
-ball_color = [random.randint(0, 255) for _ in range(3)]
-square_color = [random.randint(0, 255) for _ in range(3)]
+random_color = [random.randint(128, 255) for _ in range(3)]
+
+bounce_sound.play()
 
 def random_velocity_change(velocity):
     change = random.uniform(-1, 1)
     return velocity + change
 
-def smooth_color_change(color):
-    return [(c + random.randint(-2, 2)) % 256 for c in color]
+def smooth_color_change(color, step=1):
+    return [(c + random.randint(-step, step)) % 128 + 128 for c in color]
+
+def fade_color(color, factor):
+    return [int(c * factor) for c in color]
 
 while True:
     for event in pygame.event.get():
@@ -49,6 +61,7 @@ while True:
         ball_pos[0] += VELOCITY[0]
         bounce_count += 1
         square_size -= DECREASE_RATE
+        # bounce_sound.play()
 
     if ball_pos[1] - BALL_RADIUS <= top_bound or ball_pos[1] + BALL_RADIUS >= bottom_bound:
         VELOCITY[1] = -VELOCITY[1]
@@ -56,28 +69,39 @@ while True:
         ball_pos[1] += VELOCITY[1]
         bounce_count += 1
         square_size -= DECREASE_RATE
+        # bounce_sound.play()
 
     if square_size <= BALL_RADIUS * 2:
         square_size = BALL_RADIUS * 2
 
     # Update colors smoothly
-    ball_color = smooth_color_change(ball_color)
-    square_color = smooth_color_change(square_color)
+    random_color = smooth_color_change(random_color, step=2)
 
-    # Create a trailing effect
+    # Update tail positions
+    tail_positions.append(list(ball_pos))
+    if len(tail_positions) > tail_length:
+        tail_positions.pop(0)
+
+
     screen.fill(BLACK)
-    trail_surface = pygame.Surface((WIDTH, HEIGHT))
-    trail_surface.set_alpha(50)  # Adjust the alpha for trail intensity
-    trail_surface.fill(BLACK)
-    screen.blit(trail_surface, (0, 0))
+
 
     # Draw the square and the ball with updated colors
-    pygame.draw.rect(screen, square_color, [left_bound, top_bound, square_size, square_size], 2)
-    pygame.draw.circle(screen, ball_color, ball_pos, BALL_RADIUS)
+    pygame.draw.rect(screen, random_color, [left_bound, top_bound, square_size, square_size], 5)
+
+    for i, pos in enumerate(tail_positions):
+        fade_factor = (i + 1) / tail_length  # Fade factor based on position in the tail
+        faded_color = fade_color(random_color, fade_factor)
+        pygame.draw.circle(screen, faded_color, pos, BALL_RADIUS, 2)
+
+
+
+    # pygame.draw.circle(screen, random_color, ball_pos, BALL_RADIUS)
+    # pygame.draw.circle(screen, WHITE, ball_pos, BALL_RADIUS, 2)
 
     # Display bounce count
     font = pygame.font.Font(None, 74)
-    text = font.render(f"Bounces: {bounce_count}", True, ball_color)
+    text = font.render(f"Bounces: {bounce_count}", True, random_color)
     screen.blit(text, (10, 10))
 
     pygame.display.flip()
